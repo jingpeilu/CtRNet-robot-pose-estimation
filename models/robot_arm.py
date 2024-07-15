@@ -12,7 +12,7 @@ class PandaArm():
         assert joint_angle.shape[0] == 7
 
 
-        link_idx_list = [0,1,2,3,4,5,6,7,8,9]
+        link_idx_list = [0,1,2,3,4,5,6,7,9]
         # link 0,1,2,3,4,5,6,7, and hand
         R_list = []
         t_list = []
