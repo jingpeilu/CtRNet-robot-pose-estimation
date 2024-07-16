@@ -103,7 +103,7 @@ class GaussianHeatmapLoss(torch.nn.Module):
         self.mse = torch.nn.MSELoss()
         self.landmark_downscale = landmark_downscale
     
-    def forward(self, source:dict, target:torch.Tensor) -> torch.Tensor:
+    def forward(self, source:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
         '''
             Loss function is:
                 loss = MSE(score_map, heatmap(target) )
@@ -113,13 +113,12 @@ class GaussianHeatmapLoss(torch.nn.Module):
                         'score_map': (B, num_keypoints, H, W) tensor. The score map for each keypoint.
                 target: (B, num_keypoints, 2) tensor. The target coordinates for each keypoint.
         '''
-        assert 'score_map' in source.keys(), "source must have 'score_map' key"
-        assert isinstance(source["score_map"], torch.Tensor), "source['score_map'] must be a tensor"
+        assert isinstance(source, torch.Tensor), "source must be a tensor"
         assert isinstance(target, torch.Tensor), "target must be a tensor"
-        assert len(source["score_map"].shape) == 4, "source['score_map'] must have 4 dimensions"
+        assert len(source.shape) == 4, "source must have 4 dimensions"
         assert len(target.shape) == 3, "target must have 4 dimensions"
-        assert source['score_map'].shape[0] == target.shape[0], "Batch size of source and target must be the same"
-        assert source['score_map'].shape[1] == target.shape[1], "Number of keypoints of source and target must be the same"
+        assert source.shape[0] == target.shape[0], "Batch size of source and target must be the same"
+        assert source.shape[1] == target.shape[1], "Number of keypoints of source and target must be the same"
         assert target.shape[2] == 2, "target must have 2 dimensions for the keypoint location"
 
         # If landmark_downscale is not 1, then we need to downscale the target
@@ -129,15 +128,15 @@ class GaussianHeatmapLoss(torch.nn.Module):
         # Create the gaussian heatmaps
         #   - Reshape target to (B*num_keypoints, 2) so that we can compute the gaussian heatmap for each keypoint
         #   - Compute gaussian heatmap
-        target_heatmap = compute_gaussian_heatmap(target.reshape(-1, 2), source['score_map'].shape[2:], self.std)
+        target_heatmap = compute_gaussian_heatmap(target.reshape(-1, 2), source.shape[2:], self.std)
         #   - Reshape target_heatmap to (B, num_keypoints, H, W)
-        target_heatmap = target_heatmap.reshape(source['score_map'].shape[0], source['score_map'].shape[1],
-                                                source['score_map'].shape[2], source['score_map'].shape[3])
+        target_heatmap = target_heatmap.reshape(source.shape[0], source.shape[1],
+                                                source.shape[2], source.shape[3])
 
         # Compute loss
-        loss = self.mse(source['score_map'], target_heatmap)
+        loss = self.mse(source, target_heatmap)
 
-        return loss
+        return loss, target_heatmap
 
     def __str__(self):
         return f"Gaussian Heatmap Loss with std={self.std} and landmark_downscale={self.landmark_downscale}"

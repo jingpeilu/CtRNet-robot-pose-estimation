@@ -246,11 +246,14 @@ def overwrite_image(image, points_predicted, color = (0,255,0), point_size = 8):
 
 
 def normalize_data(data):
+    if np.max(data) == np.min(data):
+        return data
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
 def to_numpy_img(img):
-        img = torch.squeeze(img).permute(1,2,0)
+        if len(img.shape) > 2:
+            img = torch.squeeze(img).permute(1,2,0)
         img_np = img.detach().cpu().numpy().copy()
         img_np = normalize_data(img_np)
         return img_np

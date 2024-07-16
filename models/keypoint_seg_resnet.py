@@ -135,15 +135,16 @@ class KeyPointSegNet(nn.Module):
 
         # keypoint prediction branch
         heatmap = self.read_out(resnet_out) # (B, k, H//4, W//4)
-        keypoints = self.spatialsoftargmax(heatmap)
+        heatmap = F.interpolate(heatmap, (self.args.height, self.args.width), mode='bilinear', align_corners=False)
+        #keypoints = self.spatialsoftargmax(heatmap)
         # mapping back to original resolution from [-1,1]
-        offset = torch.tensor([self.lim[0], self.lim[2]], device = resnet_out.device)
-        scale = torch.tensor([self.args.width // 2, self.args.height // 2], device = resnet_out.device)
-        keypoints = keypoints - offset
-        keypoints = keypoints * scale
+        #offset = torch.tensor([self.lim[0], self.lim[2]], device = resnet_out.device)
+        #scale = torch.tensor([self.args.width // 2, self.args.height // 2], device = resnet_out.device)
+        #keypoints = keypoints - offset
+        #keypoints = keypoints * scale
 
         # segmentation branch
         x = self.classifer(resnet_out)
         segout = F.interpolate(x, size=input_shape, mode='bilinear', align_corners=False)
 
-        return keypoints, segout
+        return heatmap, segout
