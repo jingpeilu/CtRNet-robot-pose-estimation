@@ -6,6 +6,7 @@ import numpy as np
 from .keypoint_seg_resnet import KeyPointSegNet
 from .BPnP import BPnP, BPnP_m3d, batch_project
 from .mesh_renderer import RobotMeshRenderer
+from .heatmap import heatmap_to_keypoints
 
 
 class CtRNet(torch.nn.Module):
@@ -64,18 +65,21 @@ class CtRNet(torch.nn.Module):
         # robot: robot model
 
         # detect 2d keypoints and segmentation masks
-        points_2d, segmentation = self.keypoint_seg_predictor(img[None])
+        heatmap, segmentation = self.keypoint_seg_predictor(img[None])
+        points_2d = heatmap_to_keypoints(heatmap)
         foreground_mask = torch.sigmoid(segmentation)
-        _,t_list = self.robot.get_joint_RT(joint_angles)
-        points_3d = torch.from_numpy(np.array(t_list)).float().to(self.device)
-        if self.args.robot_name == "Panda":
-            points_3d = points_3d[[0,2,3,4,6,7,8]] # remove 1 and 5 links as they are overlapping with 2 and 6
+        points = self.robot.get_3d_keypoints(joint_angles)
+        points_3d = torch.from_numpy(points).float().to(self.device)
+        cTr = self.bpnp(points_2d, points_3d, self.K)
+        #cTr = self.bpnp(points_2d[:,6:,:], points_3d[6:,:], CtRNet.K)
+
+        #if self.args.robot_name == "Panda":
+        #    points_3d = points_3d[[0,2,3,4,6,7,8]] # remove 1 and 5 links as they are overlapping with 2 and 6
 
         #init_pose = torch.tensor([[  1.5497,  0.5420, -0.3909, -0.4698, -0.0211,  1.3243]])
         #cTr = bpnp(points_2d_pred, points_3d, K, init_pose)
-        cTr = self.bpnp(points_2d, points_3d, self.K)
 
-        return cTr, points_2d, foreground_mask
+        return cTr, points_2d, foreground_mask, heatmap
     
     def inference_batch_images(self, img, joint_angles):
         # img: (B, 3, H, W)
@@ -83,22 +87,22 @@ class CtRNet(torch.nn.Module):
         # robot: robot model
 
         # detect 2d keypoints and segmentation masks
-        points_2d, segmentation = self.keypoint_seg_predictor(img)
+        heatmap, segmentation = self.keypoint_seg_predictor(img)
+        points_2d = heatmap_to_keypoints(heatmap)
         foreground_mask = torch.sigmoid(segmentation)
 
         points_3d_batch = []
         for b in range(joint_angles.shape[0]):
-            _,t_list = self.robot.get_joint_RT(joint_angles[b])
-            points_3d = torch.from_numpy(np.array(t_list)).float().to(self.device)
-            if self.args.robot_name == "Panda":
-                points_3d = points_3d[:,[0,2,3,4,6,7,8]]
+            #_,t_list = self.robot.get_joint_RT(joint_angles[b])
+            points = self.robot.get_3d_keypoints(joint_angles[b])
+            points_3d = torch.from_numpy(points).float().to(self.device)
             points_3d_batch.append(points_3d[None])
 
         points_3d_batch = torch.cat(points_3d_batch, dim=0)
 
         cTr = self.bpnp_m3d(points_2d, points_3d_batch, self.K)
 
-        return cTr, points_2d, foreground_mask
+        return cTr, points_2d, foreground_mask, heatmap
 
     
     def cTr_to_pose_matrix(self, cTr):
