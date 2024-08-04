@@ -269,21 +269,17 @@ class ImageDataLoaderReal(Dataset):
         with open(label_json, "r") as json_file:
             data = json.load(json_file)
 
-        if "panda" in self.data_folder:
-            joint_angle = np.array([data['sim_state']['joints'][0]['position'],
-                                    data['sim_state']['joints'][1]['position'],
-                                    data['sim_state']['joints'][2]['position'],
-                                    data['sim_state']['joints'][3]['position'],
-                                    data['sim_state']['joints'][4]['position'],
-                                    data['sim_state']['joints'][5]['position'],
-                                    data['sim_state']['joints'][6]['position']])
+        joint_angle = np.array([data['sim_state']['joints'][0]['position'],
+                                data['sim_state']['joints'][1]['position'],
+                                data['sim_state']['joints'][2]['position'],
+                                data['sim_state']['joints'][3]['position'],
+                                data['sim_state']['joints'][4]['position'],
+                                data['sim_state']['joints'][5]['position'],
+                                data['sim_state']['joints'][6]['position']])
 
 
-            joint_angle = torch.tensor(joint_angle, dtype=torch.float)
+        joint_angle = torch.tensor(joint_angle, dtype=torch.float)
 
-
-        else:
-            joint_angle = None
 
 
         return image, joint_angle
