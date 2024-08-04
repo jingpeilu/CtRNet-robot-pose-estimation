@@ -27,7 +27,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     args = parser.parse_args("")
 
-    args.data_folder = '/media/jingpei/DATA/DREAM/data/real/panda-3cam_kinect360'
+    args.data_folder = '/media/jingpei/DATA/DREAM/data/real/panda-orb'
     args.base_dir = "/home/jingpei/Desktop/CtRNet-robot-pose-estimation"
     args.use_gpu = True
     args.trained_on_multi_gpus = True
@@ -41,7 +41,7 @@ def get_args():
     args.lr = 1e-6
     args.beta1 = 0.9
     args.n_epoch = 500
-    args.out_dir = 'outputs/panda-3cam_kinect360'
+    args.out_dir = 'outputs/panda-orb'
     args.ckp_per_epoch = 10
     args.reproj_err_scale = 1.0 / 100.0
     ################################
