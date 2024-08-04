@@ -236,7 +236,14 @@ class ImageDataLoaderReal(Dataset):
         self.trans_to_tensor = trans_to_tensor
         self.data_folder = data_folder
 
-        self.ndds_dataset, self.ndds_data_configs = find_ndds_data_in_dir(self.data_folder)
+        # if data_folder is a list of folders, then load all the data
+        if isinstance(data_folder, list):
+            self.ndds_dataset = []
+            for folder in data_folder:
+                ndds_dataset, _ = find_ndds_data_in_dir(folder)
+                self.ndds_dataset.extend(ndds_dataset)
+        else:            
+            self.ndds_dataset, self.ndds_data_configs = find_ndds_data_in_dir(self.data_folder)
 
         self.scale = scale
 
