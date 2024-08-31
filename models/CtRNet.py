@@ -7,7 +7,7 @@ from .keypoint_seg_resnet import KeyPointSegNet
 from .BPnP import BPnP, BPnP_m3d, batch_project
 from .mesh_renderer import RobotMeshRenderer
 from .heatmap import heatmap_to_keypoints
-
+from .process_heatmap import MaxLandmarkDARK
 
 class CtRNet(torch.nn.Module):
     def __init__(self, args):
@@ -31,13 +31,22 @@ class CtRNet(torch.nn.Module):
         
         if args.keypoint_seg_model_path is not None:
             print("Loading keypoint segmentation model from {}".format(args.keypoint_seg_model_path))
-            self.keypoint_seg_predictor.load_state_dict(torch.load(args.keypoint_seg_model_path))
+            model = torch.load(args.keypoint_seg_model_path)
+            if 'model_state_dict' in model:
+                self.keypoint_seg_predictor.load_state_dict(model['model_state_dict'])
+            else:
+                self.keypoint_seg_predictor.load_state_dict(model)
 
         self.keypoint_seg_predictor.eval()
 
         # load BPnP
         self.bpnp = BPnP.apply
         self.bpnp_m3d = BPnP_m3d.apply
+
+        # load DARK
+        self.DARK = MaxLandmarkDARK(num_channels=args.n_kp)
+        if args.use_gpu:
+            self.DARK = self.DARK.cuda()
 
         # set up camera intrinsics
 
@@ -59,28 +68,45 @@ class CtRNet(torch.nn.Module):
         print("Robot model: {}".format(args.robot_name))
 
 
-    def inference_single_image(self, img, joint_angles):
+    def inference_single_image(self, img, joint_angles, part=None, use_dark=False):
         # img: (3, H, W)
         # joint_angles: (7)
         # robot: robot model
 
         # detect 2d keypoints and segmentation masks
-        heatmap, segmentation = self.keypoint_seg_predictor(img[None])
-        points_2d = heatmap_to_keypoints(heatmap)
-        foreground_mask = torch.sigmoid(segmentation)
-        points = self.robot.get_3d_keypoints(joint_angles)
-        points_3d = torch.from_numpy(points).float().to(self.device)
-        cTr = self.bpnp(points_2d, points_3d, self.K)
-        #cTr = self.bpnp(points_2d[:,6:,:], points_3d[6:,:], CtRNet.K)
-
-        #if self.args.robot_name == "Panda":
-        #    points_3d = points_3d[[0,2,3,4,6,7,8]] # remove 1 and 5 links as they are overlapping with 2 and 6
-
-        #init_pose = torch.tensor([[  1.5497,  0.5420, -0.3909, -0.4698, -0.0211,  1.3243]])
-        #cTr = bpnp(points_2d_pred, points_3d, K, init_pose)
+        with torch.no_grad():
+            heatmap, segmentation = self.keypoint_seg_predictor(img[None])
+            if use_dark:
+                points_2d, max_vale = self.DARK(heatmap)
+            else:
+                points_2d = heatmap_to_keypoints(heatmap)
+            foreground_mask = torch.sigmoid(segmentation)
+            points = self.robot.get_3d_keypoints(joint_angles)
+            points_3d = torch.from_numpy(points).float().to(self.device)
+            if part == "ee":
+                points_2d = points_2d[:,6:,:]
+                points_3d = points_3d[6:,:]
+            elif part == "base":
+                points_2d = points_2d[:,:6,:]
+                points_3d = points_3d[:6,:]
+            cTr = self.bpnp(points_2d, points_3d, self.K)
+            #cTr = self.bpnp(points_2d[:,6:,:], points_3d[6:,:], CtRNet.K)
 
         return cTr, points_2d, foreground_mask, heatmap
     
+    def inference_keypoints_dark(self, img, joint_angles):
+
+        # detect 2d keypoints and segmentation masks
+        with torch.no_grad():
+            heatmap, segmentation = self.keypoint_seg_predictor(img[None])
+            points_2d, max_vale = self.DARK(heatmap)
+
+            points = self.robot.get_3d_keypoints(joint_angles)
+            points_3d = torch.from_numpy(points).float().to(self.device)
+
+        return points_2d, points_3d, max_vale
+    
+
     def inference_batch_images(self, img, joint_angles):
         # img: (B, 3, H, W)
         # joint_angles: (B, 7)

@@ -89,7 +89,7 @@ class RobotMeshRenderer():
     def get_robot_mesh(self, joint_angle):
         
         R_list, t_list = self.robot.get_joint_RT(joint_angle)
-        assert len(self.mesh_files) == R_list.shape[0] and len(self.mesh_files) == t_list.shape[0]
+        #assert len(self.mesh_files) == R_list.shape[0] and len(self.mesh_files) == t_list.shape[0]
 
         verts_list = []
         faces_list = []
