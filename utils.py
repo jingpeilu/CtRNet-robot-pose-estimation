@@ -239,7 +239,7 @@ def overwrite_image(image, points_predicted, color = (0,255,0), point_size = 8):
         #print(points)
         
         points = points_predicted[i]
-        image = cv2.circle(image,tuple(points), point_size, color, -1)
+        image = cv2.circle(image,tuple(points), point_size, color, 1)
             
             #image = cv2.putText(image, str(i) + " " + str(round(scores[i],2)), tuple(points), cv2.FONT_HERSHEY_SIMPLEX,0.2, (0,0,255), 1, cv2.LINE_AA)  
     return image

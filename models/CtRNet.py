@@ -64,7 +64,7 @@ class CtRNet(torch.nn.Module):
         # robot: robot model
 
         # detect 2d keypoints and segmentation masks
-        points_2d, segmentation = self.keypoint_seg_predictor(img[None])
+        points_2d, segmentation, confidence = self.keypoint_seg_predictor(img[None])
         foreground_mask = torch.sigmoid(segmentation)
         _,t_list = self.robot.get_joint_RT(joint_angles)
         points_3d = torch.from_numpy(np.array(t_list)).float().to(self.device)
@@ -75,7 +75,7 @@ class CtRNet(torch.nn.Module):
         #cTr = bpnp(points_2d_pred, points_3d, K, init_pose)
         cTr = self.bpnp(points_2d, points_3d, self.K)
 
-        return cTr, points_2d, foreground_mask
+        return cTr, points_2d, foreground_mask, confidence
     
     def inference_batch_images(self, img, joint_angles):
         # img: (B, 3, H, W)
@@ -83,7 +83,7 @@ class CtRNet(torch.nn.Module):
         # robot: robot model
 
         # detect 2d keypoints and segmentation masks
-        points_2d, segmentation = self.keypoint_seg_predictor(img)
+        points_2d, segmentation, confidence = self.keypoint_seg_predictor(img)
         foreground_mask = torch.sigmoid(segmentation)
 
         points_3d_batch = []
@@ -98,7 +98,7 @@ class CtRNet(torch.nn.Module):
 
         cTr = self.bpnp_m3d(points_2d, points_3d_batch, self.K)
 
-        return cTr, points_2d, foreground_mask
+        return cTr, points_2d, foreground_mask, confidence
 
     
     def cTr_to_pose_matrix(self, cTr):

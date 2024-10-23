@@ -1,0 +1,5 @@
+FROM rpe:latest
+FROM matlabwithcalibtools:r2022b
+USER root
+WORKDIR /home/workspace/
+COPY --from=0 / /

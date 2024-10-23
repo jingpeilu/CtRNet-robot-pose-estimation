@@ -92,12 +92,32 @@ class SpatialSoftArgmax(nn.Module):
         # and y locations
         x_mean = (softmax * xc.flatten()).sum(dim=1, keepdims=True)
         y_mean = (softmax * yc.flatten()).sum(dim=1, keepdims=True)
+        # print(f"softmax: {softmax.shape} xc flatten: {xc.flatten().shape} x_mean: {x_mean.shape}")
+        # print(f"softmax: {softmax.shape} yc flatten: {yc.flatten().shape} y_mean: {y_mean.shape}")
+        # print(x_mean[0])
+        # torch.set_printoptions(profile="full")
+        # print(f"top 5: {torch.topk(softmax, 5).values.sum(dim=1)}")
+        # print(f"top 10: {torch.topk(softmax, 10).values.sum(dim=1)}")
+        # print(f"top 15: {torch.topk(softmax, 15).values.sum(dim=1)}")
+        # print(f"top 20: {torch.topk(softmax, 20).values.sum(dim=1)}")
+        # print(f"top 30: {torch.topk(softmax, 30).values.sum(dim=1)}")
+        # print(f"top 40: {torch.topk(softmax, 40).values.sum(dim=1)}")
+        
+        confidence = torch.topk(softmax, 40).values.sum(dim=1)
+        # closest_indices = torch.topk(torch.abs(xc.flatten() - x_mean), 40, dim=1, largest=False).indices
+        # y_closest_indices = torch.argmin(torch.abs(yc.flatten() - y_mean), dim=1).unsqueeze(dim=1)
+        # print(closest_indices[0].shape, softmax[0].shape)
+        # print(torch.sum(softmax[0].gather(0, closest_indices[0])))
+        # print(softmax.gather(1, closest_indices))
+        # print(torch.sum(softmax[0][closest_indices[0]-10: closest_indices[0]+10]))
+        # print(torch.max(softmax, dim=1))
+        # print(torch.argmin(torch.abs(xc.flatten() - x_mean)))
 
         # concatenate and reshape the result
         # to (B, C, 2) where for every feature
         # we have the expected x and y pixel
         # locations
-        return torch.cat([x_mean, y_mean], dim=1).view(-1, c, 2)
+        return torch.cat([x_mean, y_mean], dim=1).view(-1, c, 2), confidence
 
 
 class KeyPointSegNet(nn.Module):
@@ -135,7 +155,7 @@ class KeyPointSegNet(nn.Module):
 
         # keypoint prediction branch
         heatmap = self.read_out(resnet_out) # (B, k, H//4, W//4)
-        keypoints = self.spatialsoftargmax(heatmap)
+        keypoints, confidence = self.spatialsoftargmax(heatmap)
         # mapping back to original resolution from [-1,1]
         offset = torch.tensor([self.lim[0], self.lim[2]], device = resnet_out.device)
         scale = torch.tensor([self.args.width // 2, self.args.height // 2], device = resnet_out.device)
@@ -146,4 +166,4 @@ class KeyPointSegNet(nn.Module):
         x = self.classifer(resnet_out)
         segout = F.interpolate(x, size=input_shape, mode='bilinear', align_corners=False)
 
-        return keypoints, segout
+        return keypoints, segout, confidence
